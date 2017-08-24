@@ -8,7 +8,7 @@ import spinalcrypto.hash.md5._
 /**
   * MD5 Engine standard tester
   */
-class MD5EngineStdTester extends Component{
+/*class MD5EngineStdTester extends Component{
 
   val io = slave(MD5EngineStdIO())
 
@@ -49,5 +49,5 @@ class MD5CoreStdCocotbBoot extends SpinalTesterCocotbBase {
     config.copy(defaultClockDomainFrequency  = FixedFrequency(50 MHz),
       defaultConfigForClockDomains = ClockDomainConfig(clockEdge = RISING, resetKind = ASYNC, resetActiveLevel = LOW))
   }
-}
+}*/
 

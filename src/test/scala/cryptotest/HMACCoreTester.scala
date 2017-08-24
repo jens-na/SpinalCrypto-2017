@@ -11,7 +11,7 @@ import spinalcrypto.mac.hmac.{HMACCoreStdGeneric, HMACCoreStdIO, HMACCore_Std}
 /**
   * HMAC core standard tester
   */
-class HMACCoreStdTester() extends Component{
+/*class HMACCoreStdTester() extends Component{
 
   val md5  = new MD5Core_Std()
   val hmac = new HMACCore_Std(HMACCoreStdGeneric(md5.g.hashBlockWidth, md5.g))
@@ -31,4 +31,4 @@ class HMACCoreStdCocotbBoot extends SpinalTesterCocotbBase {
     config.copy(defaultClockDomainFrequency  = FixedFrequency(50 MHz),
       defaultConfigForClockDomains = ClockDomainConfig(clockEdge = RISING, resetKind = ASYNC, resetActiveLevel = LOW))
   }
-}
+}*/

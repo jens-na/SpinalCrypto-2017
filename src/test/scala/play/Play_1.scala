@@ -31,7 +31,7 @@ object PlayWithDesCore_Std{
   }
 }
 
-
+/*
 object PlayWith3DesCore_Std{
 
   class TripleDESCoreStdTester extends Component {
@@ -96,4 +96,4 @@ object PlayWithHMACCore_Std_MD5Core_Std{
       defaultClockDomainFrequency = FixedFrequency(50 MHz)
     ).generate(new HMACCoreStdTester).printPruned
   }
-}
+}*/

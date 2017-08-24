@@ -10,7 +10,7 @@ import spinalcrypto.symmetric._
 /**
   * DESBlock component
   */
-class DESCoreStdTester extends Component {
+/*class DESCoreStdTester extends Component {
 
   val des = new DESCore_Std()
 
@@ -32,14 +32,14 @@ class DESCoreStdCocotbBoot extends SpinalTesterCocotbBase {
     config.copy(defaultClockDomainFrequency  = FixedFrequency(50 MHz),
       defaultConfigForClockDomains = ClockDomainConfig(clockEdge = RISING, resetKind = ASYNC, resetActiveLevel = LOW))
   }
-}
+}*/
 
 
 
 /**
   * Triple DES component
   */
-class TripleDESCoreStdTester extends Component {
+/*class TripleDESCoreStdTester extends Component {
 
   val des3 = new TripleDESCore_Std()
 
@@ -60,4 +60,4 @@ class TripleDESCoreCocotbBoot extends SpinalTesterCocotbBase {
     config.copy(defaultClockDomainFrequency  = FixedFrequency(50 MHz),
       defaultConfigForClockDomains = ClockDomainConfig(clockEdge = RISING, resetKind = ASYNC, resetActiveLevel = LOW))
   }
-}
+}*/
