@@ -4,7 +4,8 @@ import spinal.core._
 import spinal.lib._
 
 object AESState extends SpinalEnum {
-  val Init, AddRoundKey, SubBytes, ShiftRows, MixColumns, Response = newElement()
+  val Idle, Init, KeyExpansion, AddRoundKey, SubBytes,
+      ShiftRows, MixColumns, Response = newElement()
 }
 
 /**

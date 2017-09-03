@@ -4,7 +4,6 @@ import spinal.core._
 import spinal.lib._
 import spinal.lib.fsm._
 import spinalcrypto.symmetric.{SymmetricCryptoBlockGeneric, SymmetricCryptoBlockIO}
-import spinalcrypto.symmetric.aes.{AESCoreSpec, AESState}
 
 /**
   * AES core component
@@ -14,6 +13,10 @@ class AESCore(keyLength : Int, blockLength: Int) extends Component {
 
   def xtimes(x : Bits) : Bits = {
     return (x<<1).resize(8) ^ (((x>>7) & 1).asUInt * 0x1b).asBits.resize(8)
+  }
+
+  def resize8(x : UInt) : UInt = {
+    return x.resize(8)
   }
 
   // Symmetric crypto API
@@ -42,7 +45,7 @@ class AESCore(keyLength : Int, blockLength: Int) extends Component {
 
   val encode = io.crypto.cmd.enc
 
-  // cipher state
+  // Cipher state
   val cipherState = Reg(AESState) init(AESState.Init)
   io.cipherState := cipherState
 
@@ -104,11 +107,11 @@ class AESCore(keyLength : Int, blockLength: Int) extends Component {
 
     //responseBlock := ((127 downto 120) -> state(4)(4), default -> false)
     //responseBlock := ((7 downto 0) -> state(0)(0), default -> false)
-    var k = 15
+    var k = 0
     for(i <- 0 until 4) {
       for(j <- 0 until 4) {
         responseBlock := ((127-(k*7)-k downto 127-((k+1)*7)-k) -> state(i)(j))
-        k = k - 1
+        k = k + 1
       }
     }
 
@@ -130,40 +133,47 @@ class AESCore(keyLength : Int, blockLength: Int) extends Component {
     * provided by io.crypto.key.
     */
   val KeyExpansion = new Area {
-    val roundKeys = Vec(Bits(8 bits), keyCount)
+    val roundKeys = Reg(Vec(Bits(8 bits), keyCount))
+    val fire = cipherState === AESState.KeyExpansion
+    val isBusy = Reg(Bool) init(False)
 
-      // Generate initial round keys from Key
-      for(i <- 0 until 16) {
-        roundKeys(i) := F.inputKey(i)
-      }
 
-      for(i <- nk until (nb * (nr + 1))) {
-        if(i % nk == 0) {
+    val next = Reg(UInt(log2Up(keyCount) bits )) init(nk)
+    val cur = resize8(next * 4)
+    val prev1 = resize8((next - 1) * 4)
+    val prev16 = resize8((next - nk) * 4)
+    val rconCalc = resize8(next / nk)
 
-          // SubWord(RotWord(roundkey[-1])) XOR rcon[i/nk]
-          roundKeys((i * 4) + 0) := roundKeys((i - nk) * 4 + 0) ^ (Tables.sbox.readAsync(roundKeys((i - 1) * 4  + 1).asUInt) ^ Tables.rcon.readAsync(i/nk))
-          roundKeys((i * 4) + 1) := roundKeys((i - nk) * 4 + 1) ^ (Tables.sbox.readAsync(roundKeys((i - 1) * 4  + 2).asUInt) ^ Tables.rcon.readAsync(i/nk))
-          roundKeys((i * 4) + 2) := roundKeys((i - nk) * 4 + 2) ^ (Tables.sbox.readAsync(roundKeys((i - 1) * 4  + 3).asUInt) ^ Tables.rcon.readAsync(i/nk))
-          roundKeys((i * 4) + 3) := roundKeys((i - nk) * 4 + 3) ^ (Tables.sbox.readAsync(roundKeys((i - 1) * 4  + 0).asUInt) ^ Tables.rcon.readAsync(i/nk))
-          printf("q0: %d, %d, %d, %d\n", i*4, (i-nk)*4, (i - 1) * 4  + 1, i/nk)
+
+    when(isBusy) {
+      when(next < (nb * (nr + 1))) {
+        when(next % nk === 0) {
+          roundKeys(cur + 0) := roundKeys(prev16 + 0) ^ (Tables.sbox.readAsync(roundKeys(prev1 + 1).asUInt)  ^ Tables.rcon.readAsync(rconCalc))
+          roundKeys(cur + 1) := roundKeys(prev16 + 1) ^ Tables.sbox.readAsync(roundKeys(prev1 + 2).asUInt)
+          roundKeys(cur + 2) := roundKeys(prev16 + 2) ^ Tables.sbox.readAsync(roundKeys(prev1 + 3).asUInt)
+          roundKeys(cur + 3) := roundKeys(prev16 + 3) ^ Tables.sbox.readAsync(roundKeys(prev1 + 0).asUInt)
+        }.otherwise {
+          roundKeys(cur + 0) := roundKeys(prev16 + 0) ^ roundKeys(prev1 + 0)
+          roundKeys(cur + 1) := roundKeys(prev16 + 1) ^ roundKeys(prev1 + 1)
+          roundKeys(cur + 2) := roundKeys(prev16 + 2) ^ roundKeys(prev1 + 2)
+          roundKeys(cur + 3) := roundKeys(prev16 + 3) ^ roundKeys(prev1 + 3)
         }
-        else if(nk > 6 && i % nk == 4) {
 
-          // SubWord(roundkey[current]) - AES256 only
-          roundKeys((i * 4) + 0)  := roundKeys((i - nk) * 4 + 0) ^ Tables.sbox.readAsync(roundKeys((i - 1) * 4  + 0).asUInt)
-          roundKeys((i * 4) + 1)  := roundKeys((i - nk) * 4 + 1) ^ Tables.sbox.readAsync(roundKeys((i - 1) * 4  + 1).asUInt)
-          roundKeys((i * 4) + 2)  := roundKeys((i - nk) * 4 + 2) ^ Tables.sbox.readAsync(roundKeys((i - 1) * 4  + 2).asUInt)
-          roundKeys((i * 4) + 3)  := roundKeys((i - nk) * 4 + 3) ^ Tables.sbox.readAsync(roundKeys((i - 1) * 4  + 3).asUInt)
-        } else {
+        //AES256
+        // when(Bool(nk > 6) && next % nk === 4) {
+        //  roundKeys((next * 4) + 0) := roundKeys((next - nk) * 4 + 0) ^ Tables.sbox.readAsync(roundKeys((next - 1) * 4 + 0).asUInt)
+        //  roundKeys((next * 4) + 1) := roundKeys((next - nk) * 4 + 1) ^ Tables.sbox.readAsync(roundKeys((next - 1) * 4 + 1).asUInt)
+        //  roundKeys((next * 4) + 2) := roundKeys((next - nk) * 4 + 2) ^ Tables.sbox.readAsync(roundKeys((next - 1) * 4 + 2).asUInt)
+        //  roundKeys((next * 4) + 3) := roundKeys((next - nk) * 4 + 3) ^ Tables.sbox.readAsync(roundKeys((next - 1) * 4 + 3).asUInt)
+        //}
 
-          roundKeys((i * 4) + 0) := roundKeys((i - nk) * 4 + 0) ^ roundKeys((i - 1) * 4  + 0)
-          roundKeys((i * 4) + 1) := roundKeys((i - nk) * 4 + 1) ^ roundKeys((i - 1) * 4  + 1)
-          roundKeys((i * 4) + 2) := roundKeys((i - nk) * 4 + 2) ^ roundKeys((i - 1) * 4  + 2)
-          roundKeys((i * 4) + 3) := roundKeys((i - nk) * 4 + 3) ^ roundKeys((i - 1) * 4  + 3)
-          printf("q1: %d, %d, %d\n", (i * 4), (i - nk) * 4, (i - 1) * 4)
-        }
+        next := next + 1
+      }.otherwise {
+        isBusy := False
       }
+    }
   }
+
   io.roundKeys := KeyExpansion.roundKeys
 
   val MixColumns = new Area {
@@ -261,28 +271,56 @@ class AESCore(keyLength : Int, blockLength: Int) extends Component {
       var k = 0
       for(i <- 0 until 4) {
         for(j <- 0 until 4) {
-          state(j)(i) := F.inputBlock(k)
+          state(i)(j) := F.inputBlock(k)
           k = k + 1
         }
+      }
+
+      // Generate initial round keys from Key
+      for (i <- 0 until 16) {
+        KeyExpansion.roundKeys(i) := F.inputKey(i)
       }
     }
   }
 
 
   val Cipher = new StateMachine {
-    val qInit = new State with EntryPoint
-    val qAddRoundKey = new State
-    val qSubBytes = new State
-    val qShiftRows = new State
-    val qMixColumns = new State
-    val qResp = new State
+    val qIdle = new State with EntryPoint // 0
+    val qInit = new State // 1
+    val qKeyExpansion = new State // 2
+    val qAddRoundKey = new State // 3
+    val qSubBytes = new State // 4
+    val qShiftRows = new State // 5
+    val qMixColumns = new State // 6
+    val qResp = new State // 7
 
+    qIdle
+        .whenIsActive {
+            when(io.crypto.cmd.valid) {
+              goto(qInit)
+            }.otherwise {
+              goto(qIdle)
+            }
+        }
     qInit
-      .onEntry(cipherState := AESState.Init)
-      .whenIsActive {
-        goto(qAddRoundKey)
-        //goto (qResp)
+      .onEntry {
+          cipherState := AESState.Init
       }
+      .whenIsActive {
+        goto(qKeyExpansion)
+      }
+    qKeyExpansion
+        .onEntry {
+          cipherState := AESState.KeyExpansion
+          KeyExpansion.isBusy := True
+        }
+        .whenIsActive {
+          when(!KeyExpansion.isBusy) {
+            goto(qAddRoundKey)
+          }.otherwise {
+            goto(qKeyExpansion)
+          }
+        }
    qAddRoundKey
       .onEntry(cipherState := AESState.AddRoundKey)
       .whenIsActive {
@@ -313,7 +351,10 @@ class AESCore(keyLength : Int, blockLength: Int) extends Component {
       }
     qResp
         .onEntry(cipherState := AESState.Response)
-        .whenIsActive(respValid := True)
+        .whenIsActive {
+          respValid := True
+          goto(qIdle)
+        }
   }
 
   // AES response signals

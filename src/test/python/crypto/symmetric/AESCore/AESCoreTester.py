@@ -67,7 +67,6 @@ def testAESCore(dut):
     yield RisingEdge(helperAES.io.clk)
 
     # expected result:
-    result = 0x3ad77bb40d7a3660a89ecaf32466ef97
-
+    assertEquals(0x3ad77bb40d7a3660a89ecaf32466ef97, rtlEncryptedBlock, "Encryption data wrong ")
 
     dut.log.info("Cocotb test AES Core End")

@@ -14,7 +14,7 @@ class AESCoreTester extends Component {
     val state = out Vec(Vec(Bits(8 bits), 4), 4)
     val cipherState = out (AESState)
     val inputBlock = out Vec(Bits(8 bits), 16)
-    val roundKeys = out Vec(Bits(8 bits), 4 * (10 + 1) * 4)
+    val roundKeys = out Vec(Bits(8 bits), (4 * (10 + 1) * 4))
   }
 
   aes.io.crypto <> io.crypto
