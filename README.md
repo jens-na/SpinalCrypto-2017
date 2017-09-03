@@ -9,7 +9,7 @@ This repository contains cryptographic Spinal IPs.
 
 - DESCore_Std
 - TripleDESCore_Std
-
+- AESCore (WIP)
 
 ### Hash
 
